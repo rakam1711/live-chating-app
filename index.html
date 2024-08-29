@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Private Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f5;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #chatContainer {
+            width: 400px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        #userFormArea, #chatArea {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #userFormArea {
+            background-color: #2c3e50;
+            color: white;
+        }
+
+        #usernameInput {
+            padding: 10px;
+            width: 100%;
+            border: none;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+
+        #setUsernameBtn {
+            padding: 10px;
+            width: 100%;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+
+        #setUsernameBtn:hover {
+            background-color: #2980b9;
+        }
+
+        #chatArea {
+            display: none;
+        }
+
+        #usernameDisplay {
+            width: 100%;
+            text-align: right;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        #recipientDisplay {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px 0;
+            font-size: 18px;
+            color: #2c3e50;
+        }
+
+        .online-status {
+            width: 12px;
+            height: 12px;
+            background-color: green;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        #messages {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+            width: 100%;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #messages li {
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #ecf0f1;
+            border-radius: 5px;
+            width: fit-content;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        #messages li.sender {
+            background-color: #3498db;
+            color: white;
+            align-self: flex-end;
+        }
+
+        #messages li.recipient {
+            background-color: #ecf0f1;
+            color: black;
+            align-self: flex-start;
+        }
+
+        #form {
+            width: 100%;
+            display: flex;
+        }
+
+        #recipientInput, #input {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            flex-grow: 1;
+            margin-right: 10px;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+
+        button:hover {
+            background-color: #1a252f;
+        }
+
+    </style>
+</head>
+<body>
+    <div id="chatContainer">
+        <div id="userFormArea">
+            <h2>Welcome to the Chat</h2>
+            <input id="usernameInput" placeholder="Enter username" autocomplete="off" />
+            <button id="setUsernameBtn">Set Username</button>
+        </div>
+        <div id="chatArea">
+            <div id="usernameDisplay"></div>
+            <div id="recipientDisplay">
+                <span class="online-status"></span><span id="recipientName"></span>
+            </div>
+            <ul id="messages"></ul>
+            <form id="form" action="">
+                <input id="recipientInput" placeholder="Recipient" autocomplete="off" />
+                <input id="input" placeholder="Message" autocomplete="off" />
+                <button type="submit">Send</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        var socket = io();
+        var username = '';
+
+        var userFormArea = document.getElementById('userFormArea');
+        var chatArea = document.getElementById('chatArea');
+        var usernameInput = document.getElementById('usernameInput');
+        var setUsernameBtn = document.getElementById('setUsernameBtn');
+        var usernameDisplay = document.getElementById('usernameDisplay');
+        var recipientName = document.getElementById('recipientName');
+        var recipientInput = document.getElementById('recipientInput');
+        var form = document.getElementById('form');
+        var input = document.getElementById('input');
+
+        // Set username
+        setUsernameBtn.addEventListener('click', function() {
+            if (usernameInput.value) {
+                socket.emit('set username', usernameInput.value);
+            }
+        });
+
+        socket.on('user set', function(user) {
+            username = user.username; // Use the username property
+            usernameDisplay.textContent = `Logged in as: ${username}`;
+            userFormArea.style.display = 'none';
+            chatArea.style.display = 'block';
+        });
+
+        // Handle form submission
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (input.value && recipientInput.value) {
+                recipientName.textContent = recipientInput.value;
+                socket.emit('private message', {
+                    recipient: recipientInput.value,
+                    msg: input.value
+                });
+                addMessageToChat(input.value, true);
+                input.value = '';
+            }
+        });
+
+        // Display incoming messages
+        socket.on('chat message', function({ sender, msg }) {
+            addMessageToChat(msg, false, sender);
+        });
+
+        function addMessageToChat(msg, isSender, sender = '') {
+            var item = document.createElement('li');
+            item.textContent = isSender ? `You: ${msg}` : `${sender}: ${msg}`;
+            item.classList.add(isSender ? 'sender' : 'recipient');
+            document.getElementById('messages').appendChild(item);
+            window.scrollTo(0, document.body.scrollHeight);
+        }
+
+        // Handle errors
+        socket.on('error', function(errorMessage) {
+            alert(errorMessage);
+        });
+    </script>
+</body>
+</html>

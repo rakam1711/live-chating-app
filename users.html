@@ -1,0 +1,39 @@
+<!-- users.html -->
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Online Users</title>
+    <style>
+      ul { list-style-type: none; margin: 0; padding: 0; }
+      li { padding: 10px; margin-bottom: 5px; background-color: #f3f3f3; border-radius: 4px; cursor: pointer; }
+      .online-status { width: 10px; height: 10px; background-color: green; border-radius: 50%; display: inline-block; margin-right: 5px; }
+    </style>
+  </head>
+  <body>
+    <h2>Online Users</h2>
+    <ul id="userList"></ul>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      var socket = io();
+
+      socket.on('user list', function(users) {
+        var userList = document.getElementById('userList');
+        userList.innerHTML = '';
+
+        users.forEach(function(user) {
+          var li = document.createElement('li');
+          li.innerHTML = `<span class="online-status"></span>${user}`;
+          li.addEventListener('click', function() {
+            window.location.href = `/?recipient=${user}`;
+          });
+          userList.appendChild(li);
+        });
+      });
+
+      // Request the user list on load
+      socket.emit('set username', 'userlist'); // Temporary username to get the list
+    </script>
+  </body>
+</html>
